@@ -1,6 +1,5 @@
 import os
 import re
-import copy
 
 # im almost 100% sure there is a simpler or atleast built in way to do this but I'm lazy
 def getIndentValue(s):
@@ -92,8 +91,6 @@ def ternaryifier(conditional):
     question = ""
     children = ""
     indentLevel = getIndentValue(conditional[0])
-    endFormat = False
-    copyConditional = copy.deepcopy(conditional)
 
     # add indent to ternary
     ternary = ternary + " " * indentLevel
@@ -131,7 +128,6 @@ def ternaryifier(conditional):
 
     ternary += f"exec('{children}')"
     print(ternary)
-    print(copyConditional)
 
 
 # main function to handle reading and writing
