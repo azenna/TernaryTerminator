@@ -1,5 +1,6 @@
 import os
 import re
+from black import format_str, FileMode
 
 # im almost 100% sure there is a simpler or atleast built in way to do this but I'm lazy
 def getIndentValue(s):
@@ -91,9 +92,12 @@ def ternaryifier(conditional):
     question = ""
     children = ""
     indentLevel = getIndentValue(conditional[0])
+    isElifEnd = False
+    onlyIf = True
+    isFirstChild = True
+    childIndent = 0
 
     # add indent to ternary
-    ternary = ternary + " " * indentLevel
 
     for i in range(len(conditional)):
 
@@ -109,9 +113,9 @@ def ternaryifier(conditional):
             question = cond.strip()[2:-1].strip()
 
         if isEither:
+            onlyIf = False
             # add to ternary, delete from question and children
             # format string
-
             ternary += f"exec('{children}') if {question} else "
 
             # reset values
@@ -120,14 +124,32 @@ def ternaryifier(conditional):
 
         if isElif:
             question = cond.strip()[4:-1].strip()
+            isElifEnd = True
+        if isElse:
+            isElifEnd = False
 
         if indent > indentLevel:
+
+            # control indent level so executable
+            if isFirstChild:
+                childIndent = getIndentValue(cond)
+                cond = cond[childIndent:]
+                isFirstChild = False
+
+            else:
+                cond = cond[childIndent:]
+
             # fmt: off
-            children += cond.replace("'", "\'").replace('"', '\"').replace("\n", "\\n")
+            children += cond.replace("'", "\\'").replace('"', '\\"').replace("\n","\\n")
             # fmt: on
 
-    ternary += f"exec('{children}')"
-    print(ternary)
+    # doesn't get to last conditional so we need to do last operation outside of loop.
+    if isElifEnd or onlyIf:
+        ternary += f"exec('{children}') if {question} else exec(None)"
+    else:
+        ternary += f"exec('{children}')"
+
+    return ternary + "\n"
 
 
 # main function to handle reading and writing
@@ -145,9 +167,22 @@ def ternaryMain():
     # main loop for reading and writing to files
     for file in files:
 
+        filename = file
+
+        # code formatting for standardization
+        file = open(filename, "r")
+        blackString = file.read()
+        file.close()
+
+        blackFormat = format_str(blackString, mode=FileMode())
+        file = open(filename, "w")
+        file.write(blackFormat)
+        file.close()
+
         # I really like file so Im gonna reuse it for everything
-        file = open(file, "r+")
+        file = open(filename, "r+")
         lines = file.readlines()
+        file.close()
 
         # remove all extraneous lines for simplicity
         lines = [line for line in lines if not bool(re.search("^\s*\n", line))]
@@ -155,23 +190,33 @@ def ternaryMain():
         # retrieve all conditionals from lines in nested list format
         conditionals, conditionalsInd = findConditionals(lines)
 
+        # skip this file if there are no conditionals
+        if not conditionals[0]:
+            continue
+
         # loop to turn conditional in to ternary and write it to file
         for i in range(len(conditionals)):
 
             # values for loop
             cond = conditionals[i]
             condI = conditionalsInd[i]
-            ternaryifier(cond)
 
-            # #where the ternary will be inserted
-            # newI = condI[0]
+            ternary = ternaryifier(cond)
 
-            # #delete all old conditionals from lines and replace with ternary
-            # for ind in condI:
-            #   lines.pop(ind)
+            # where the ternary will be inserted
+            newI = condI[0]
 
-            # #insert into lines
-            # lines.insert(newI, ternary)
+            # insert into lines
+            lines[newI] = ternary
 
+            # replace old linew with None
+            condI = condI[1:]
+            for i in condI:
+                lines[i] = None
 
-ternaryMain()
+        # take out all lines that are none
+        lines = [line for line in lines if line is not None]
+
+        # write to the file
+        file = open(filename, "w")
+        file.write("".join(lines))
