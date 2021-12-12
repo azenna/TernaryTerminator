@@ -220,3 +220,7 @@ def ternaryMain():
         # write to the file
         file = open(filename, "w")
         file.write("".join(lines))
+
+
+if __name__ == "__main__":
+    ternaryMain()
